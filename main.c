@@ -1,8 +1,8 @@
 
-#define F_CPU 10000000
-
 #include <avr/io.h>
 #include <util/delay.h>
+
+// SNES Input
 
 #define SNES_DATA_CLOCK_DDR		DDRD
 #define SNES_DATA_CLOCK_PORT	PORTD
@@ -38,12 +38,48 @@
 #define SNES_ID_UNUSED2			14
 #define SNES_ID_UNUSED3			15
 
+// Atari Output
+
+#define ATARI_UP_DDR			DDRD
+#define ATARI_UP_PORT			PORTD
+#define ATARI_UP_BIT			(1 << 1)
+
+#define ATARI_DOWN_DDR			DDRC
+#define ATARI_DOWN_PORT			PORTC
+#define ATARI_DOWN_BIT			(1 << 5)
+
+#define ATARI_LEFT_DDR			DDRC
+#define ATARI_LEFT_PORT			PORTC
+#define ATARI_LEFT_BIT			(1 << 4)
+
+#define ATARI_RIGHT_DDR			DDRC
+#define ATARI_RIGHT_PORT		PORTC
+#define ATARI_RIGHT_BIT			(1 << 3)
+
+#define ATARI_PADDLEB_DDR		DDRC
+#define ATARI_PADDLEB_PORT		PORTC
+#define ATARI_PADDLEB_BIT		(1 << 2)
+
+#define ATARI_TRIGGER_DDR		DDRC
+#define ATARI_TRIGGER_PORT		PORTC
+#define ATARI_TRIGGER_BIT		(1 << 1)
+
+#define ATARI_PADDLEA_DDR		DDRC
+#define ATARI_PADDLEA_PORT		PORTC
+#define ATARI_PADDLEA_BIT		(1 << 0)
+
+#define ATARI_UP_SNES_MASK		(1 << SNES_ID_UP)
+#define ATARI_DOWN_SNES_MASK	(1 << SNES_ID_DOWN)
+#define ATARI_LEFT_SNES_MASK	(1 << SNES_ID_LEFT)
+#define ATARI_RIGHT_SNES_MASK	(1 << SNES_ID_RIGHT)
+#define ATARI_TRIGGER_SNES_MASK	(1 << SNES_ID_A)
+#define ATARI_PADDLEA_SNES_MASK	(1 << SNES_ID_B)
+#define ATARI_PADDLEB_SNES_MASK	((1 << SNES_ID_X) | (1 << SNES_ID_Y))
+
 uint16_t snes_state;
 
-int main()
+void init_snes()
 {
-	DDRD |= (1 << 0);
-
 	SNES_DATA_LATCH_DDR |= SNES_DATA_LATCH_BIT;
 	SNES_DATA_CLOCK_DDR |= SNES_DATA_CLOCK_BIT;
 	SNES_SERIAL_DATA_DDR &= ~SNES_SERIAL_DATA_BIT;
@@ -51,38 +87,77 @@ int main()
 	SNES_DATA_LATCH_PORT &= ~SNES_DATA_LATCH_BIT;
 	SNES_DATA_CLOCK_PORT |= SNES_DATA_CLOCK_BIT;
 	SNES_SERIAL_DATA_PORT |= SNES_SERIAL_DATA_BIT;
+}
+
+void poll_snes()
+{
+	SNES_DATA_LATCH_PORT |= SNES_DATA_LATCH_BIT;
+	_delay_us(12);
+	SNES_DATA_LATCH_PORT &= ~SNES_DATA_LATCH_BIT;
+	_delay_us(6);
+
+	snes_state = 0;
+	for(int i=0; i<SNES_BITS_COUNT; i++)
+	{
+		SNES_DATA_CLOCK_PORT &= ~SNES_DATA_CLOCK_BIT;
+
+		if(!(SNES_SERIAL_DATA_PIN & SNES_SERIAL_DATA_BIT))
+			snes_state |= (1 << i);
+
+		_delay_us(6);
+		SNES_DATA_CLOCK_PORT |= SNES_DATA_CLOCK_BIT;
+		_delay_us(6);
+	}
+}
+
+void init_atari()
+{
+	ATARI_UP_PORT &= ~ATARI_UP_BIT;
+	ATARI_DOWN_PORT &= ~ATARI_DOWN_BIT;
+	ATARI_LEFT_PORT &= ~ATARI_LEFT_BIT;
+	ATARI_RIGHT_PORT &= ~ATARI_RIGHT_BIT;
+	ATARI_PADDLEB_PORT &= ~ATARI_PADDLEB_BIT;
+	ATARI_TRIGGER_PORT &= ~ATARI_TRIGGER_BIT;
+	ATARI_PADDLEA_PORT &= ~ATARI_PADDLEA_BIT;
+
+	ATARI_UP_DDR &= ~ATARI_UP_BIT;
+	ATARI_DOWN_DDR &= ~ATARI_DOWN_BIT;
+	ATARI_LEFT_DDR &= ~ATARI_LEFT_BIT;
+	ATARI_RIGHT_DDR &= ~ATARI_RIGHT_BIT;
+	ATARI_PADDLEB_DDR &= ~ATARI_PADDLEB_BIT;
+	ATARI_TRIGGER_DDR &= ~ATARI_TRIGGER_BIT;
+	ATARI_PADDLEA_DDR &= ~ATARI_PADDLEA_BIT;
+}
+
+void update_atari()
+{
+#define UPDATE_STATE(x) \
+	if(snes_state & ATARI_##x##_SNES_MASK) \
+		ATARI_##x##_DDR |= ATARI_##x##_BIT; \
+	else \
+		ATARI_##x##_DDR &= ~ATARI_##x##_BIT;
+	UPDATE_STATE(UP)
+	UPDATE_STATE(DOWN)
+	UPDATE_STATE(LEFT)
+	UPDATE_STATE(RIGHT)
+	UPDATE_STATE(TRIGGER)
+	UPDATE_STATE(PADDLEA)
+	UPDATE_STATE(PADDLEB)
+#undef UPDATE_STATE
+}
+
+int main()
+{
+	init_snes();
+	init_atari();
 
 	while(1)
 	{
-		SNES_DATA_LATCH_PORT |= SNES_DATA_LATCH_BIT;
-		_delay_us(12);
-		SNES_DATA_LATCH_PORT &= ~SNES_DATA_LATCH_BIT;
-		_delay_us(6);
-
-		snes_state = 0;
-		for(int i=0; i<SNES_BITS_COUNT; i++)
-		{
-			SNES_DATA_CLOCK_PORT &= ~SNES_DATA_CLOCK_BIT;
-			// sample button here
-
-			if(SNES_SERIAL_DATA_PIN & SNES_SERIAL_DATA_BIT)
-				snes_state |= (1 << i);
-
-			_delay_us(6);
-			SNES_DATA_CLOCK_PORT |= SNES_DATA_CLOCK_BIT;
-			_delay_us(6);
-		}
-
-		if(snes_state & (1 << SNES_ID_A))
-		{
-			PORTD &= ~(1 << 0);
-		}
-		else
-		{
-			PORTD |= (1 << 0);
-		}
-
+		poll_snes();
+		update_atari();
 		_delay_ms(SNES_POLL_DELAY_MS);
 	}
+
 	return 0;
 }
+

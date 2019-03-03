@@ -1,6 +1,7 @@
-MCU=atmega328p
+MCU:=atmega328p
+F_CPU:=10000000
 PORT=$(shell pavr2cmd --prog-port)
-CFLAGS=-g -Wall -mcall-prologues -mmcu=$(MCU) -Os
+CFLAGS=-g -Wall -mcall-prologues -mmcu=$(MCU) -Os -DF_CPU=${F_CPU}
 LDFLAGS=-Wl,-gc-sections -Wl,-relax
 CC=avr-gcc
 TARGET=main
