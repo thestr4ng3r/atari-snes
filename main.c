@@ -68,6 +68,14 @@
 #define ATARI_PADDLEA_PORT		PORTA
 #define ATARI_PADDLEA_BIT		(1 << PA6)
 
+// SNES Masks Select
+
+#define SNES_MASKS_SELECT_DDR	DDRA
+#define SNES_MASKS_SELECT_PORT	PORTA
+#define SNES_MASKS_SELECT_PIN	PINA
+#define SNES_MASKS_SELECT_BIT	(1 << PA7)
+
+
 struct snes_masks_t
 {
 	uint16_t up;
@@ -88,9 +96,18 @@ struct snes_masks_t snes_masks[] = {
 		((1 << SNES_ID_A) | (1 << SNES_ID_B)), // trigger
 		(1 << SNES_ID_X),		// paddlea
 		(1 << SNES_ID_Y)		// paddleb
+	}, {
+		(1 << SNES_ID_B),		// up
+		(1 << SNES_ID_DOWN),	// down
+		(1 << SNES_ID_LEFT),	// left
+		(1 << SNES_ID_RIGHT),	// right
+		(1 << SNES_ID_A),		// trigger
+		(1 << SNES_ID_X),		// paddlea
+		(1 << SNES_ID_Y)		// paddleb
 	}
 };
 
+uint8_t snes_masks_index;
 uint16_t snes_state;
 
 void init_snes()
@@ -147,7 +164,7 @@ void init_atari()
 void update_atari()
 {
 #define UPDATE_STATE(x, y) \
-	if(snes_state & snes_masks[0].y) \
+	if(snes_state & snes_masks[snes_masks_index].y) \
 		ATARI_##x##_DDR |= ATARI_##x##_BIT; \
 	else \
 		ATARI_##x##_DDR &= ~ATARI_##x##_BIT;
@@ -161,14 +178,27 @@ void update_atari()
 #undef UPDATE_STATE
 }
 
+void init_snes_masks_select()
+{
+	SNES_MASKS_SELECT_DDR &= ~SNES_MASKS_SELECT_BIT;
+	SNES_MASKS_SELECT_PORT |= SNES_MASKS_SELECT_BIT;
+}
+
+void poll_snes_masks_select()
+{
+	snes_masks_index = (SNES_MASKS_SELECT_PIN & SNES_MASKS_SELECT_BIT) ? 1 : 0;
+}
+
 int main()
 {
 	init_snes();
 	init_atari();
+	init_snes_masks_select();
 
 	while(1)
 	{
 		poll_snes();
+		poll_snes_masks_select();
 		update_atari();
 		_delay_ms(SNES_POLL_DELAY_MS);
 	}
