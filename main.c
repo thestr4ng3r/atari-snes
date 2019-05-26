@@ -68,13 +68,28 @@
 #define ATARI_PADDLEA_PORT		PORTA
 #define ATARI_PADDLEA_BIT		(1 << PA6)
 
-#define ATARI_UP_SNES_MASK		(1 << SNES_ID_UP)
-#define ATARI_DOWN_SNES_MASK	(1 << SNES_ID_DOWN)
-#define ATARI_LEFT_SNES_MASK	(1 << SNES_ID_LEFT)
-#define ATARI_RIGHT_SNES_MASK	(1 << SNES_ID_RIGHT)
-#define ATARI_TRIGGER_SNES_MASK	((1 << SNES_ID_A) | (1 << SNES_ID_B))
-#define ATARI_PADDLEA_SNES_MASK	(1 << SNES_ID_X)
-#define ATARI_PADDLEB_SNES_MASK	(1 << SNES_ID_Y)
+struct snes_masks_t
+{
+	uint16_t up;
+	uint16_t down;
+	uint16_t left;
+	uint16_t right;
+	uint16_t trigger;
+	uint16_t paddlea;
+	uint16_t paddleb;
+};
+
+struct snes_masks_t snes_masks[] = {
+	{
+		(1 << SNES_ID_UP),		// up
+		(1 << SNES_ID_DOWN),	// down
+		(1 << SNES_ID_LEFT),	// left
+		(1 << SNES_ID_RIGHT),	// right
+		((1 << SNES_ID_A) | (1 << SNES_ID_B)), // trigger
+		(1 << SNES_ID_X),		// paddlea
+		(1 << SNES_ID_Y)		// paddleb
+	}
+};
 
 uint16_t snes_state;
 
@@ -131,18 +146,18 @@ void init_atari()
 
 void update_atari()
 {
-#define UPDATE_STATE(x) \
-	if(snes_state & ATARI_##x##_SNES_MASK) \
+#define UPDATE_STATE(x, y) \
+	if(snes_state & snes_masks[0].y) \
 		ATARI_##x##_DDR |= ATARI_##x##_BIT; \
 	else \
 		ATARI_##x##_DDR &= ~ATARI_##x##_BIT;
-	UPDATE_STATE(UP)
-	UPDATE_STATE(DOWN)
-	UPDATE_STATE(LEFT)
-	UPDATE_STATE(RIGHT)
-	UPDATE_STATE(TRIGGER)
-	UPDATE_STATE(PADDLEA)
-	UPDATE_STATE(PADDLEB)
+	UPDATE_STATE(UP, up)
+	UPDATE_STATE(DOWN, down)
+	UPDATE_STATE(LEFT, left)
+	UPDATE_STATE(RIGHT, right)
+	UPDATE_STATE(TRIGGER, trigger)
+	UPDATE_STATE(PADDLEA, paddlea)
+	UPDATE_STATE(PADDLEB, paddleb)
 #undef UPDATE_STATE
 }
 
